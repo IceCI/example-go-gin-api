@@ -1,0 +1,90 @@
+globals:
+  onFailure:
+    #  This failure handler will be called failed of any step in the pipeline
+    # comment this out if you do not want to integrate pipeline with slack
+    - handlerName: slack-notify-error
+
+failureHandlers:
+  - name: debug-env
+    image: busybox
+    script: |
+      echo "### PWD"
+      pwd
+      echo "### ENV"
+      env
+      echo "ls -la"
+      ls -la
+
+  - name: slack-notify-error
+    image: iceci/utils
+    script: |
+      cat <<EOF > slacknotify.json
+      {
+        "text" : "Build $ICE_BUILD_NUMBER on branch $ICE_GIT_BRANCH_NAME failed on step $ICE_FAILED_STEP_NAME commited by $ICE_GIT_AUTHOR_NAME"
+      }
+      EOF
+      curl -X POST -H 'Content-type: application/json' --data "@slacknotify.json" $SLACK_WEBHOOK
+    environment:
+      - name: SLACK_WEBHOOK
+        fromSecret: slack-webhook
+
+# Service with postgres will run during whole pipeline
+services:
+  - name: db
+    image: postgres:11
+    environment:
+      - name: POSTGRES_DB
+        value: testdb
+      - name: POSTGRES_PASSWORD
+        value: dbpass
+      - name: POSTGRES_USER
+        value: dbuser
+
+steps:
+  - name: test-and-build
+    containerRun:
+      image: golang:1.14
+      script: |
+        go test ./cmd
+        go build -o example-go-app cmd/main.go
+      environment:
+      - name: CGO_ENABLED
+        value: 0
+      - name: APP_PORT
+        value: 8000
+      - name: DB_HOST
+        value: db
+      - name: DB_PORT
+        value: 5432
+      - name: DB_USER
+        value: dbuser
+      - name: DB_PASS
+        value: dbpass
+      - name: DB_NAME
+        value: testdb
+      - name: DB_DIALECT
+        value: postgres
+
+  - name: build-docker-image
+    containerBuild:
+      dockerSecret: dockerhub
+      user: iceci
+      imageName: example-go-webapp
+      tags:
+      - "{{ ICE_BUILD_NUMBER }}"
+      - latest
+
+  # comment this step out if you do not want to integrate this pipeline with slack
+  - name: slack-notify
+    containerRun:
+      image: iceci/utils
+      script: |
+        cat <<EOF > slacknotify.json
+        {
+          "text" : "Build $ICE_BUILD_NUMBER on branch $ICE_GIT_BRANCH_NAME finished successfully!"
+        }
+        EOF
+        curl -X POST -H 'Content-type: application/json' --data "@slacknotify.json" $SLACK_WEBHOOK
+      environment:
+        - name: SLACK_WEBHOOK
+          fromSecret: slack-webhook
