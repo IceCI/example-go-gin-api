@@ -20,7 +20,7 @@ failureHandlers:
     script: |
       cat <<EOF > slacknotify.json
       {
-        "text" : "Build $ICE_BUILD_NUMBER on branch $ICE_GIT_BRANCH_NAME failed on step $ICE_FAILED_STEP_NAME commited by $ICE_GIT_AUTHOR_NAME"
+        "text" : "Build $ICECI_BUILD_NUMBER on branch $ICECI_GIT_BRANCH_NAME failed on step $ICECI_FAILED_STEP_NAME commited by $ICECI_GIT_AUTHOR_NAME"
       }
       EOF
       curl -X POST -H 'Content-type: application/json' --data "@slacknotify.json" $SLACK_WEBHOOK
@@ -71,7 +71,7 @@ steps:
       user: iceci
       imageName: example-go-webapp
       tags:
-      - "{{ ICE_BUILD_NUMBER }}"
+      - "{{ ICECI_BUILD_NUMBER }}"
       - latest
 
   # comment this step out if you do not want to integrate this pipeline with slack
@@ -81,7 +81,7 @@ steps:
       script: |
         cat <<EOF > slacknotify.json
         {
-          "text" : "Build $ICE_BUILD_NUMBER on branch $ICE_GIT_BRANCH_NAME finished successfully!"
+          "text" : "Build $ICECI_BUILD_NUMBER on branch $ICECI_GIT_BRANCH_NAME finished successfully!"
         }
         EOF
         curl -X POST -H 'Content-type: application/json' --data "@slacknotify.json" $SLACK_WEBHOOK
